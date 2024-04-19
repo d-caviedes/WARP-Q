@@ -26,6 +26,9 @@ from pyvad import vad
 from skimage.util.shape import view_as_windows
 from torch import Tensor
 from typing_extensions import Literal
+import warnings
+
+warnings.filterwarnings(action="ignore", category=UserWarning, module="sklearn")
 
 
 def warpq(
