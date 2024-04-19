@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warpq"
+version = "0.0.1"
+description = "A installable version of the WarpQ original code"
+authors = [
+  { name = "Diego Caviedes (AI Audio Research)", email = "diegocvnz@gmail.com" },
+]
+
+readme = "README.md"
+requires-python = ">=3.11"
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools]
+packages = ["warpq"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.ruff]
+line-length = 120
