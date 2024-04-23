@@ -64,8 +64,8 @@ def warpq(
         in order to avoid errors in the MOS score mappging.
 
     Args:
-        preds: float tensor with shape ``(...,time)``
-        target: float tensor with shape ``(...,time)``
+        preds: float tensor with shape ``(1,time)``
+        target: float tensor with shape ``(1,time)``
         fs: sampling frequency, should be 16000 or 8000 (Hz)
         n_mfcc: integer specifying the number of MFCC features to extract
         fmax: integer specifying the maximum frequency to include in the mel spectrum
@@ -102,10 +102,16 @@ def warpq(
 
     """
     if fs not in (8000, 16000):
-        raise ValueError(
-            f"Expected argument `fs` to either be 8000 or 16000 but got {fs}"
-        )
+        raise ValueError(f"Expected argument `fs` to either be 8000 or 16000 but got {fs}")
 
+    if preds.shape != target.shape:
+        raise RuntimeError("Expected `preds` and `target` to have the same shape")
+    if len(preds.shape) > 1:
+        if preds.shape[0] != 1:
+            raise RuntimeError("Expected `preds` and `target` to be Mono")
+        else:
+            preds = preds.squeeze(0)
+            target = target.squeeze(0)
     if sigma is None:
         sigma = Tensor([[1, 1], [3, 2], [1, 3]])
     if weights_mul is None:
@@ -186,13 +192,9 @@ def warpq(
     )
 
     # Feature Normalisation using CMVNW method
-    mfcc_ref = speechpy.processing.cmvnw(
-        mfcc_ref.T, win_size=201, variance_normalization=True
-    ).T
+    mfcc_ref = speechpy.processing.cmvnw(mfcc_ref.T, win_size=201, variance_normalization=True).T
 
-    mfcc_coded = speechpy.processing.cmvnw(
-        mfcc_coded.T, win_size=201, variance_normalization=True
-    ).T
+    mfcc_coded = speechpy.processing.cmvnw(mfcc_coded.T, win_size=201, variance_normalization=True).T
 
     # Divide MFCC features of Coded speech into patches
     cols = int(patch_size / (hop_length / fs))
@@ -241,9 +243,7 @@ def _warpq_to_mos_score(score: Tensor, net_type: str, keep_same_device: bool) ->
     mapping_model, data_scaler = _load_model(net_type)
     fea_scaled = data_scaler.transform(fea)
     mapped_score = (
-        mapping_model.predict(fea_scaled, verbose=0)
-        if "NN" in net_type
-        else mapping_model.predict(fea_scaled)
+        mapping_model.predict(fea_scaled, verbose=0) if "NN" in net_type else mapping_model.predict(fea_scaled)
     )
     mapped_score = Tensor(np.array(round(mapped_score.item(), 3)))
     if mapped_score > 5:
@@ -354,53 +354,31 @@ def _warpq_arg_validate(
 
     """
     if not (isinstance(fs, int) and (fs in (8000, 16000)) and fs > 0):
-        raise ValueError(
-            f"Expected argument `fs` to either be 8000 or 16000 but got {fs}"
-        )
+        raise ValueError(f"Expected argument `fs` to either be 8000 or 16000 but got {fs}")
     if not (isinstance(n_mfcc, int) and n_mfcc > 0):
-        raise ValueError(
-            f"Expected argument `n_mfcc` to be an int larger than 0, but got {n_mfcc}"
-        )
+        raise ValueError(f"Expected argument `n_mfcc` to be an int larger than 0, but got {n_mfcc}")
     if not (isinstance(lifter, int)):
         raise ValueError(f"Expected argument `lifter` to be an int, but got {lifter}")
     if not (isinstance(metric, str)):
         raise ValueError(f"Expected argument `metric` to be a string, but got {metric}")
     if not (isinstance(fmax, int) and fmax > 0):
-        raise ValueError(
-            f"Expected argument `fmax` to be an int larger than 0, but got {fmax}"
-        )
+        raise ValueError(f"Expected argument `fmax` to be an int larger than 0, but got {fmax}")
     if not (isinstance(patch_size, float) and patch_size > 0):
-        raise ValueError(
-            f"Expected argument `patch_size` to be a float larger than 0, but got {patch_size}"
-        )
+        raise ValueError(f"Expected argument `patch_size` to be a float larger than 0, but got {patch_size}")
     if not (isinstance(sigma, Tensor) and sigma.shape == (3, 2)):
-        raise ValueError(
-            f"Expected argument `sigma` to be an array of shape (3, 2), but got {sigma}"
-        )
+        raise ValueError(f"Expected argument `sigma` to be an array of shape (3, 2), but got {sigma}")
     if not (isinstance(band_rad, float) and band_rad > 0):
-        raise ValueError(
-            f"Expected argument `band_rad` to be a float larger than 0, but got {band_rad}"
-        )
+        raise ValueError(f"Expected argument `band_rad` to be a float larger than 0, but got {band_rad}")
     if not (isinstance(weights_mul, Tensor) and weights_mul.shape == (3,)):
-        raise ValueError(
-            f"Expected argument `weights_mul` to be an array of shape (3,), but got {weights_mul}"
-        )
+        raise ValueError(f"Expected argument `weights_mul` to be an array of shape (3,), but got {weights_mul}")
     if not (isinstance(apply_vad, bool)):
-        raise ValueError(
-            f"Expected argument `apply_vad` to be a boolean, but got {apply_vad}"
-        )
+        raise ValueError(f"Expected argument `apply_vad` to be a boolean, but got {apply_vad}")
     if not (isinstance(hop_size_vad, int) and hop_size_vad > 0):
-        raise ValueError(
-            f"Expected argument `hop_size_vad` to be an int larger than 0, but got {hop_size_vad}"
-        )
+        raise ValueError(f"Expected argument `hop_size_vad` to be an int larger than 0, but got {hop_size_vad}")
     if not (isinstance(aggresive, int) and aggresive in (0, 1, 2, 3)):
-        raise ValueError(
-            f"Expected argument `aggresive` to be an int in (0, 1, 2, 3), but got {aggresive}"
-        )
+        raise ValueError(f"Expected argument `aggresive` to be an int in (0, 1, 2, 3), but got {aggresive}")
     if not (isinstance(keep_same_device, bool)):
-        raise ValueError(
-            f"Expected argument `keep_same_device` to be a boolean, but got {keep_same_device}"
-        )
+        raise ValueError(f"Expected argument `keep_same_device` to be a boolean, but got {keep_same_device}")
     if not (isinstance(net_type, str)) and (
         net_type
         not in [
@@ -409,7 +387,7 @@ def _warpq_arg_validate(
             "RF_PSup23",
             "RF_TCDVoIP",
             "NN_Genspeech",
-            "NN_Geenspeech_TCDVoIP_PSup23",
+            "NN_Genspeech_TCDVoIP_PSup23",
             "NN_PSup23",
             "NN_TCDVoIP",
         ]
@@ -417,7 +395,7 @@ def _warpq_arg_validate(
         raise ValueError(
             f"Expected argument `net_type` to be a string in "
             f"['RF_Genspeech', 'RF_Genspeech_TCDVoIP_PSup23', 'RF_PSup23', 'RF_TCDVoIP', "
-            f"'NN_Genspeech', 'NN_Geenspeech_TCDVoIP_PSup23', 'NN_PSup23', 'NN_TCDVoIP'], but got {net_type}"
+            f"'NN_Genspeech', 'NN_Genspeech_TCDVoIP_PSup23', 'NN_PSup23', 'NN_TCDVoIP'], but got {net_type}"
         )
 
 
@@ -428,7 +406,7 @@ def _load_model(
         "RF_PSup23",
         "RF_TCDVoIP",
         "NN_Genspeech",
-        "NN_Geenspeech_TCDVoIP_PSup23",
+        "NN_Genspeech_TCDVoIP_PSup23",
         "NN_PSup23",
         "NN_TCDVoIP",
     ] = "RF_Genspeech",
@@ -440,10 +418,7 @@ def _load_model(
     if "NN" in net_type:
         try:
             mapping_model = keras.models.load_model(
-                Path(__file__).parent.resolve()
-                / "warpq_models"
-                / net_type
-                / "mapping_model.h5"
+                Path(__file__).parent.resolve() / "warpq_models" / net_type / "mapping_model.h5"
             )
         except Exception as e:
             print(e)
@@ -453,12 +428,7 @@ def _load_model(
         try:
             mapping_model = pickle.load(
                 open(
-                    (
-                        Path(__file__).parent.resolve()
-                        / "warpq_models"
-                        / net_type
-                        / "mapping_model.pkl"
-                    ),
+                    (Path(__file__).parent.resolve() / "warpq_models" / net_type / "mapping_model.pkl"),
                     "rb",
                 )
             )
@@ -469,12 +439,7 @@ def _load_model(
     try:  # Read data scaler
         data_scaler = pickle.load(
             open(
-                (
-                    Path(__file__).parent.resolve()
-                    / "warpq_models"
-                    / net_type
-                    / "data_scaler.pkl"
-                ),
+                (Path(__file__).parent.resolve() / "warpq_models" / net_type / "data_scaler.pkl"),
                 "rb",
             )
         )
