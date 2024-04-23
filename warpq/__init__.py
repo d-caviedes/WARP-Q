@@ -109,9 +109,8 @@ def warpq(
     if len(preds.shape) > 1:
         if preds.shape[0] != 1:
             raise RuntimeError("Expected `preds` and `target` to be Mono")
-        else:
-            preds = preds.squeeze(0)
-            target = target.squeeze(0)
+        preds = preds.squeeze(0)
+        target = target.squeeze(0)
     if sigma is None:
         sigma = Tensor([[1, 1], [3, 2], [1, 3]])
     if weights_mul is None:
